@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/profile_model.dart';
 import '../models/internship_model.dart';
@@ -25,6 +26,20 @@ class SupabaseService {
     return await client.auth.signInWithPassword(
       email: email,
       password: password,
+    );
+  }
+
+  static Future<void> signInWithGoogle() async {
+    await client.auth.signInWithOAuth(
+      OAuthProvider.google,
+      redirectTo: kIsWeb ? null : 'io.supabase.magangday://login-callback',
+    );
+  }
+
+  static Future<void> signInWithApple() async {
+    await client.auth.signInWithOAuth(
+      OAuthProvider.apple,
+      redirectTo: kIsWeb ? null : 'io.supabase.magangday://login-callback',
     );
   }
 

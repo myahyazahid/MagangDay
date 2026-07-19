@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -19,6 +20,47 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _rememberMe = false;
   bool _obscurePassword = true;
   bool _isLoading = false;
+
+  late final StreamSubscription<AuthState> _authSubscription;
+
+  @override
+  void initState() {
+    super.initState();
+    _authSubscription = Supabase.instance.client.auth.onAuthStateChange.listen((data) {
+      final AuthChangeEvent event = data.event;
+      if (event == AuthChangeEvent.signedIn) {
+        if (mounted) {
+          Navigator.pushReplacementNamed(context, '/home');
+        }
+      }
+    });
+  }
+
+  Future<void> _handleSocialLogin(Future<void> Function() loginMethod) async {
+    setState(() {
+      _isLoading = true;
+    });
+    try {
+      await loginMethod();
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            backgroundColor: Colors.redAccent,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            content: Text(
+              e is AuthException ? e.message : e.toString(),
+              style: GoogleFonts.plusJakartaSans(color: Colors.white, fontWeight: FontWeight.w600),
+            ),
+          ),
+        );
+      }
+    }
+  }
 
   // Google SVG Icon (Light Theme Color Version)
   final String _googleSvg = '''
@@ -103,6 +145,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   void dispose() {
+    _authSubscription.cancel();
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
@@ -474,7 +517,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                     child: _SocialButton(
                                       svgIcon: _googleSvg,
                                       label: 'Google',
-                                      onPressed: () {},
+                                      onPressed: () => _handleSocialLogin(SupabaseService.signInWithGoogle),
                                     ),
                                   ),
                                   const SizedBox(width: 12),
@@ -482,7 +525,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                     child: _SocialButton(
                                       svgIcon: _appleSvg,
                                       label: 'Apple',
-                                      onPressed: () {},
+                                      onPressed: () => _handleSocialLogin(SupabaseService.signInWithApple),
                                     ),
                                   ),
                                 ],

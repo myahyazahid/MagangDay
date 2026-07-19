@@ -208,7 +208,22 @@ class _HomeScreenState extends State<HomeScreen> {
     if (user != null) {
       try {
         // 1. Load Profile
-        final profile = await SupabaseService.getProfile(user.id);
+        var profile = await SupabaseService.getProfile(user.id);
+        if (profile == null) {
+          final fullNameMetadata = user.userMetadata?['full_name'] ?? 
+                                   user.userMetadata?['name'] ?? 
+                                   'Mahasiswa Magang';
+          profile = ProfileModel(
+            id: user.id,
+            email: user.email ?? '',
+            fullName: fullNameMetadata.toString(),
+            nim: '',
+            university: '',
+            studyProgram: '',
+            semester: 1,
+          );
+          await SupabaseService.saveProfile(profile);
+        }
         
         // 2. Load Active Internship
         final internship = await SupabaseService.getActiveInternship(user.id);
