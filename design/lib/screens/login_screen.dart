@@ -74,12 +74,14 @@ class _LoginScreenState extends State<LoginScreen> {
 ''';
 
   // Apple SVG Icon (Black Version for Light Theme)
+  /*
   final String _appleSvg = '''
 <svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
   <path d="M11.18 8.01C11.16 6.05 12.78 5.11 12.85 5.06C11.94 3.73 10.52 3.55 10.01 3.53C8.8 3.41 7.65 4.24 7.03 4.24C6.41 4.24 5.45 3.55 4.43 3.57C3.09 3.59 1.85 4.35 1.16 5.55C-0.24 7.97 0.8 11.56 2.16 13.52C2.83 14.48 3.62 15.56 4.66 15.52C5.67 15.48 6.05 14.87 7.26 14.87C8.48 14.87 8.83 15.52 9.89 15.5C10.97 15.48 11.65 14.52 12.31 13.55C13.07 12.44 13.39 11.36 13.41 11.3C13.39 11.3 11.18 10.45 11.18 8.01Z" fill="#000000"/>
   <path d="M9.3 2.2C9.85 1.54 10.22 0.62 10.1 -0.3C9.3 -0.26 8.33 0.23 7.76 0.89C7.24 1.47 6.79 2.41 6.91 3.3C7.8 3.37 8.71 2.84 9.3 2.2Z" fill="#000000"/>
 </svg>
 ''';
+*/
 
   // Eye Icon (Visible) - Orange/Grey stroke
   final String _eyeSvg = '''
@@ -215,26 +217,22 @@ class _LoginScreenState extends State<LoginScreen> {
                                     height: 42,
                                     decoration: BoxDecoration(
                                       borderRadius: BorderRadius.circular(12),
-                                      gradient: const LinearGradient(
-                                        begin: Alignment.topLeft,
-                                        end: Alignment.bottomRight,
-                                        colors: [
-                                          Color(0xFFFF9E00),
-                                          Color(0xFFFF6D00),
-                                        ],
-                                      ),
                                       boxShadow: [
                                         BoxShadow(
-                                          color: const Color(0xFFFF6D00).withValues(alpha: 0.25),
+                                          color: Colors.black.withValues(alpha: 0.08),
                                           blurRadius: 8,
                                           offset: const Offset(0, 4),
                                         )
                                       ],
                                     ),
-                                    child: const Icon(
-                                      Icons.assignment_turned_in_rounded,
-                                      color: Colors.white,
-                                      size: 24,
+                                    child: ClipRRect(
+                                      borderRadius: BorderRadius.circular(12),
+                                      child: Image.asset(
+                                        'assets/logo.png',
+                                        width: 42,
+                                        height: 42,
+                                        fit: BoxFit.cover,
+                                      ),
                                     ),
                                   ),
                                   const SizedBox(width: 10),
@@ -510,25 +508,11 @@ class _LoginScreenState extends State<LoginScreen> {
                               ),
                               const SizedBox(height: 20),
 
-                              // --- Google / Apple Social Light Buttons ---
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: _SocialButton(
-                                      svgIcon: _googleSvg,
-                                      label: 'Google',
-                                      onPressed: () => _handleSocialLogin(SupabaseService.signInWithGoogle),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Expanded(
-                                    child: _SocialButton(
-                                      svgIcon: _appleSvg,
-                                      label: 'Apple',
-                                      onPressed: () => _handleSocialLogin(SupabaseService.signInWithApple),
-                                    ),
-                                  ),
-                                ],
+                              // --- Google Social Light Button ---
+                              _SocialButton(
+                                svgIcon: _googleSvg,
+                                label: 'Google',
+                                onPressed: () => _handleSocialLogin(SupabaseService.signInWithGoogle),
                               ),
                               const SizedBox(height: 24),
 

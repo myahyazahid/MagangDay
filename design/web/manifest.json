@@ -1,6 +1,6 @@
 {
-    "name": "lumina_app",
-    "short_name": "lumina_app",
+    "name": "MagangDay",
+    "short_name": "MagangDay",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
