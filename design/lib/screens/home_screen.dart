@@ -6,6 +6,8 @@ import '../models/profile_model.dart';
 import '../models/internship_model.dart';
 import '../models/activity_log_model.dart';
 import '../services/supabase_service.dart';
+import '../services/report_service.dart';
+
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -1027,6 +1029,41 @@ class _HomeScreenState extends State<HomeScreen> {
       },
     );
   }
+
+  Future<void> _handleDownloadPdf(List<ActivityLogModel> filteredLogs) async {
+    if (_profile == null) {
+      _showTopNotification('Data profil mahasiswa belum dimuat.', isError: true);
+      return;
+    }
+    _showTopNotification('Menyiapkan laporan PDF...', isError: false);
+    try {
+      await ReportService.generatePdfReport(
+        profile: _profile!,
+        internship: _activeInternship,
+        logs: filteredLogs,
+      );
+    } catch (e) {
+      _showTopNotification('Gagal membuat PDF: ${e.toString()}', isError: true);
+    }
+  }
+
+  Future<void> _handleDownloadExcel(List<ActivityLogModel> filteredLogs) async {
+    if (_profile == null) {
+      _showTopNotification('Data profil mahasiswa belum dimuat.', isError: true);
+      return;
+    }
+    _showTopNotification('Menyiapkan laporan Excel...', isError: false);
+    try {
+      await ReportService.generateExcelReport(
+        profile: _profile!,
+        internship: _activeInternship,
+        logs: filteredLogs,
+      );
+    } catch (e) {
+      _showTopNotification('Gagal membuat Excel: ${e.toString()}', isError: true);
+    }
+  }
+
 
   Widget _buildContactSupportCard({
     required IconData icon,
@@ -2221,9 +2258,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
           // Report Actions Footer Buttons
           ElevatedButton.icon(
-            onPressed: () {
-              _showTopNotification('Generating Internship Report...', isError: false);
-            },
+            onPressed: () => _handleDownloadPdf(filteredLogs),
             icon: const Icon(Icons.document_scanner_rounded, size: 16),
             label: Text(
               'Generate Internship Report',
@@ -2243,9 +2278,7 @@ class _HomeScreenState extends State<HomeScreen> {
             children: [
               Expanded(
                 child: OutlinedButton.icon(
-                  onPressed: () {
-                    _showTopNotification('Downloading PDF Report...', isError: false);
-                  },
+                  onPressed: () => _handleDownloadPdf(filteredLogs),
                   icon: const Icon(Icons.picture_as_pdf_rounded, size: 16),
                   label: Text('PDF', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 13)),
                   style: OutlinedButton.styleFrom(
@@ -2259,9 +2292,7 @@ class _HomeScreenState extends State<HomeScreen> {
               const SizedBox(width: 12),
               Expanded(
                 child: OutlinedButton.icon(
-                  onPressed: () {
-                    _showTopNotification('Downloading Excel Report...', isError: false);
-                  },
+                  onPressed: () => _handleDownloadExcel(filteredLogs),
                   icon: const Icon(Icons.table_chart_rounded, size: 16),
                   label: Text('Excel', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 13)),
                   style: OutlinedButton.styleFrom(
