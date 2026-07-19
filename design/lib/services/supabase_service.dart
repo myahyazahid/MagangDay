@@ -79,4 +79,8 @@ class SupabaseService {
   static Future<void> deleteActivityLog(String id) async {
     await client.from('activity_logs').delete().eq('id', id);
   }
+
+  static Future<void> updatePassword(String newPassword) async {
+    await client.auth.updateUser(UserAttributes(password: newPassword));
+  }
 }
