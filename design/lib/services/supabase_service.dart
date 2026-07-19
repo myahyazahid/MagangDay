@@ -75,4 +75,8 @@ class SupabaseService {
   static Future<void> saveActivityLog(ActivityLogModel log) async {
     await client.from('activity_logs').upsert(log.toJson());
   }
+
+  static Future<void> deleteActivityLog(String id) async {
+    await client.from('activity_logs').delete().eq('id', id);
+  }
 }

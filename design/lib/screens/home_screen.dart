@@ -28,6 +28,10 @@ class _HomeScreenState extends State<HomeScreen> {
   String _filterCategory = 'All';
   String _filterStatus = 'All';
 
+  // Report range states
+  String _reportRangeType = 'This Week'; // 'This Week', 'This Month', 'Custom'
+  DateTimeRange? _customReportRange;
+
   // Form Controllers for Internship Bottom Sheet
   final _internshipFormKey = GlobalKey<FormState>();
   final _companyController = TextEditingController();
@@ -59,6 +63,16 @@ class _HomeScreenState extends State<HomeScreen> {
     'Meeting',
     'Documentation',
     'Other'
+  ];
+
+  final List<Color> _chartColors = [
+    const Color(0xFFFF6D00), // Orange
+    const Color(0xFFFF9E00), // Amber
+    const Color(0xFF3B82F6), // Blue
+    const Color(0xFF10B981), // Green
+    const Color(0xFF8B5CF6), // Purple
+    const Color(0xFFEC4899), // Pink
+    const Color(0xFF64748B), // Slate
   ];
 
   @override
@@ -227,13 +241,25 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                       ),
                       const SizedBox(height: 16),
-                      Text(
-                        'Mulai Magang Baru',
-                        style: GoogleFonts.inter(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                          color: const Color(0xFF1E1E2F),
-                        ),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'Mulai Magang Baru',
+                            style: GoogleFonts.inter(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                              color: const Color(0xFF1E1E2F),
+                            ),
+                          ),
+                          IconButton(
+                            onPressed: () => Navigator.pop(context),
+                            icon: const Icon(Icons.close_rounded, color: Color(0xFF9E9E9E)),
+                            splashRadius: 20,
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(),
+                          ),
+                        ],
                       ),
                       const SizedBox(height: 4),
                       Text(
@@ -522,13 +548,25 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                       ),
                       const SizedBox(height: 16),
-                      Text(
-                        'Catat Log Aktivitas',
-                        style: GoogleFonts.inter(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                          color: const Color(0xFF1E1E2F),
-                        ),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'Catat Log Aktivitas',
+                            style: GoogleFonts.inter(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                              color: const Color(0xFF1E1E2F),
+                            ),
+                          ),
+                          IconButton(
+                            onPressed: () => Navigator.pop(context),
+                            icon: const Icon(Icons.close_rounded, color: Color(0xFF9E9E9E)),
+                            splashRadius: 20,
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(),
+                          ),
+                        ],
                       ),
                       const SizedBox(height: 4),
                       Text(
@@ -686,7 +724,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       const SizedBox(height: 14),
 
                       // Challenges
-                      _buildFieldLabel('TANTANGAN & MASALAH'),
+                      _buildFieldLabel('TANTANGAN & MASALAH (OPSIONAL)'),
                       TextFormField(
                         controller: _challengesController,
                         maxLines: 2,
@@ -696,7 +734,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       const SizedBox(height: 14),
 
                       // Learning Outcomes
-                      _buildFieldLabel('PELAJARAN YANG DIPEROLEH (LEARNINGS)'),
+                      _buildFieldLabel('PELAJARAN YANG DIPEROLEH (OPSIONAL)'),
                       TextFormField(
                         controller: _learningController,
                         maxLines: 2,
@@ -1375,28 +1413,406 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // --- Reports Tab View (Placeholder) ---
+  // --- Reports Tab View ---
   Widget _buildReportsView() {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(28.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.bar_chart_rounded, size: 64, color: Color(0xFFFF6D00)),
-            const SizedBox(height: 16),
-            Text(
-              'Laporan Aktivitas',
-              style: GoogleFonts.inter(fontSize: 18, fontWeight: FontWeight.bold, color: const Color(0xFF1E1E2F)),
+    // 1. Get filtered logs based on selected range type
+    final now = DateTime.now();
+    DateTime startLimit;
+    DateTime endLimit = DateTime(now.year, now.month, now.day, 23, 59, 59);
+
+    if (_reportRangeType == 'This Week') {
+      final monday = DateTime(now.year, now.month, now.day).subtract(Duration(days: now.weekday - 1));
+      startLimit = monday;
+    } else if (_reportRangeType == 'This Month') {
+      startLimit = DateTime(now.year, now.month, 1);
+    } else {
+      // Custom Range
+      if (_customReportRange != null) {
+        startLimit = DateTime(_customReportRange!.start.year, _customReportRange!.start.month, _customReportRange!.start.day);
+        endLimit = DateTime(_customReportRange!.end.year, _customReportRange!.end.month, _customReportRange!.end.day, 23, 59, 59);
+      } else {
+        startLimit = DateTime(now.year, now.month, 1); // Fallback
+      }
+    }
+
+    final filteredLogs = _logs.where((log) {
+      return log.activityDate.isAfter(startLimit.subtract(const Duration(seconds: 1))) &&
+          log.activityDate.isBefore(endLimit.add(const Duration(seconds: 1)));
+    }).toList();
+
+    // 2. Calculate dynamic stats
+    final int totalDays = filteredLogs.map((log) => log.activityDate.toIso8601String().split('T')[0]).toSet().length;
+    final int totalMinutes = filteredLogs.fold<int>(0, (sum, log) => sum + log.durationMinutes);
+    final double totalHours = totalMinutes / 60.0;
+    final int completedCount = filteredLogs.where((log) => log.status == 'Completed').length;
+
+    // 3. Category distribution data
+    final Map<String, int> categoryCounts = {};
+    for (var log in filteredLogs) {
+      final cat = log.category ?? 'Other';
+      categoryCounts[cat] = (categoryCounts[cat] ?? 0) + 1;
+    }
+
+    // 4. Daily logs & hours count (Mon - Sun)
+    final List<int> dailyActivities = List.filled(7, 0);
+    final List<double> dailyHours = List.filled(7, 0.0);
+
+    for (var log in filteredLogs) {
+      // weekday is 1 for Mon, 7 for Sun. Convert to index 0 - 6
+      final idx = log.activityDate.weekday - 1;
+      if (idx >= 0 && idx < 7) {
+        dailyActivities[idx]++;
+        dailyHours[idx] += log.durationMinutes / 60.0;
+      }
+    }
+
+    return SingleChildScrollView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.symmetric(horizontal: 16.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const SizedBox(height: 20),
+          // Heading
+          Text(
+            'Reports',
+            style: GoogleFonts.inter(
+              fontSize: 22,
+              fontWeight: FontWeight.bold,
+              color: const Color(0xFF1E1E2F),
             ),
-            const SizedBox(height: 6),
-            Text(
-              'Fitur grafik ringkasan dan analisis laporan aktivitas magang sedang disiapkan untuk rilis berikutnya.',
-              textAlign: TextAlign.center,
-              style: GoogleFonts.inter(fontSize: 13, color: const Color(0xFF64748B), height: 1.4),
+          ),
+          const SizedBox(height: 14),
+
+          // Range Selector Buttons
+          Row(
+            children: [
+              _buildRangeButton('This Week', () {
+                setState(() {
+                  _reportRangeType = 'This Week';
+                });
+              }),
+              const SizedBox(width: 8),
+              _buildRangeButton('This Month', () {
+                setState(() {
+                  _reportRangeType = 'This Month';
+                });
+              }),
+              const SizedBox(width: 8),
+              _buildRangeButton(
+                _reportRangeType == 'Custom' && _customReportRange != null
+                    ? '${_formatDate(_customReportRange!.start)} - ${_formatDate(_customReportRange!.end)}'
+                    : 'Custom Range', 
+                () async {
+                  final picked = await showDateRangePicker(
+                    context: context,
+                    firstDate: DateTime(2020),
+                    lastDate: DateTime(2030),
+                    initialDateRange: _customReportRange,
+                  );
+                  if (picked != null) {
+                    setState(() {
+                      _reportRangeType = 'Custom';
+                      _customReportRange = picked;
+                    });
+                  }
+                },
+                isCustom: true,
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+
+          // Stats Cards
+          Row(
+            children: [
+              Expanded(
+                child: _buildReportStatCard(
+                  icon: Icons.calendar_month_rounded,
+                  value: totalDays.toString(),
+                  label: 'Internship Days',
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _buildReportStatCard(
+                  icon: Icons.access_time_filled_rounded,
+                  value: totalHours % 1 == 0 ? '${totalHours.toInt()}h' : '${totalHours.toStringAsFixed(1)}h',
+                  label: 'Working Hours',
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _buildReportStatCard(
+                  icon: Icons.check_circle_rounded,
+                  value: completedCount.toString(),
+                  label: 'Completed',
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+
+          // Donut Chart - Categories Breakdown
+          _buildChartCard(
+            title: 'Activity Categories',
+            child: Row(
+              children: [
+                SizedBox(
+                  width: 110,
+                  height: 110,
+                  child: CustomPaint(
+                    painter: DonutChartPainter(data: categoryCounts, colors: _chartColors),
+                  ),
+                ),
+                const SizedBox(width: 20),
+                Expanded(
+                  child: categoryCounts.isEmpty
+                      ? Center(
+                          child: Text(
+                            'No category data available.',
+                            style: GoogleFonts.inter(fontSize: 12, color: const Color(0xFF64748B)),
+                          ),
+                        )
+                      : Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: categoryCounts.entries.map((entry) {
+                            final idx = categoryCounts.keys.toList().indexOf(entry.key);
+                            final color = _chartColors[idx % _chartColors.length];
+                            return Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 2.0),
+                              child: Row(
+                                children: [
+                                  Container(
+                                    width: 10,
+                                    height: 10,
+                                    decoration: BoxDecoration(shape: BoxShape.circle, color: color),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      entry.key,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: GoogleFonts.inter(fontSize: 11, color: const Color(0xFF64748B)),
+                                    ),
+                                  ),
+                                  Text(
+                                    entry.value.toString(),
+                                    style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.bold, color: const Color(0xFF1E1E2F)),
+                                  ),
+                                ],
+                              ),
+                            );
+                          }).toList(),
+                        ),
+                ),
+              ],
             ),
-          ],
+          ),
+          const SizedBox(height: 20),
+
+          // Bar Chart - Daily Activities
+          _buildChartCard(
+            title: 'Activities per Week',
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                return SizedBox(
+                  width: constraints.maxWidth,
+                  height: 180,
+                  child: CustomPaint(
+                    painter: BarChartPainter(values: dailyActivities),
+                  ),
+                );
+              },
+            ),
+          ),
+          const SizedBox(height: 20),
+
+          // Line Chart - Working Hours per Week
+          _buildChartCard(
+            title: 'Working Hours per Week',
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                return SizedBox(
+                  width: constraints.maxWidth,
+                  height: 180,
+                  child: CustomPaint(
+                    painter: LineChartPainter(values: dailyHours),
+                  ),
+                );
+              },
+            ),
+          ),
+          const SizedBox(height: 24),
+
+          // Report Actions Footer Buttons
+          ElevatedButton.icon(
+            onPressed: () {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Generating Internship Report...'),
+                  backgroundColor: Color(0xFFFF6D00),
+                ),
+              );
+            },
+            icon: const Icon(Icons.document_scanner_rounded, size: 16),
+            label: Text(
+              'Generate Internship Report',
+              style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 13),
+            ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFFF6D00),
+              foregroundColor: Colors.white,
+              minimumSize: const Size(double.infinity, 44),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              elevation: 0,
+            ),
+          ),
+          const SizedBox(height: 10),
+
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: () {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Downloading PDF Report...')),
+                    );
+                  },
+                  icon: const Icon(Icons.picture_as_pdf_rounded, size: 16),
+                  label: Text('PDF', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 13)),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: const Color(0xFFFF6D00),
+                    side: const BorderSide(color: Color(0xFFFF6D00)),
+                    minimumSize: const Size(double.infinity, 44),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: () {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Downloading Excel Report...')),
+                    );
+                  },
+                  icon: const Icon(Icons.table_chart_rounded, size: 16),
+                  label: Text('Excel', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 13)),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: const Color(0xFFFF6D00),
+                    side: const BorderSide(color: Color(0xFFFF6D00)),
+                    minimumSize: const Size(double.infinity, 44),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 24),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRangeButton(String label, VoidCallback onTap, {bool isCustom = false}) {
+    final bool isActive = (isCustom && _reportRangeType == 'Custom') || 
+        (!isCustom && _reportRangeType == label);
+        
+    return Expanded(
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(20),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 6.8),
+          decoration: BoxDecoration(
+            color: isActive ? const Color(0xFFFFEAD5) : const Color(0xFFF1F5F9),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: isActive ? const Color(0xFFFF6D00) : Colors.transparent),
+          ),
+          alignment: Alignment.center,
+          child: Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: GoogleFonts.inter(
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              color: isActive ? const Color(0xFFFF6D00) : const Color(0xFF64748B),
+            ),
+          ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildReportStatCard({required IconData icon, required String value, required String label}) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.02),
+            blurRadius: 3,
+          )
+        ],
+      ),
+      padding: const EdgeInsets.all(12),
+      child: Column(
+        children: [
+          Container(
+            width: 32,
+            height: 32,
+            decoration: const BoxDecoration(
+              color: Color(0xFFFFEDD5),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, color: const Color(0xFFFF6D00), size: 16),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            value,
+            style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.bold, color: const Color(0xFF1E1E2F)),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            label,
+            textAlign: TextAlign.center,
+            style: GoogleFonts.inter(fontSize: 10, color: const Color(0xFF64748B)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildChartCard({required String title, required Widget child}) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 5,
+          )
+        ],
+      ),
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.bold, color: const Color(0xFF1E1E2F)),
+          ),
+          const SizedBox(height: 14),
+          child,
+        ],
       ),
     );
   }
@@ -1840,99 +2256,124 @@ class _HomeScreenState extends State<HomeScreen> {
     final double hours = log.durationMinutes / 60.0;
     final String durationText = hours % 1 == 0 ? '${hours.toInt()}h' : '${hours.toStringAsFixed(1)}h';
 
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFFE2E8F0), width: 0.8),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 2,
-            offset: const Offset(0, 1),
-          ),
-        ],
-      ),
-      padding: const EdgeInsets.all(16.8),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Date & Completed Badge
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                _formatDate(log.activityDate),
-                style: GoogleFonts.inter(
-                  fontSize: 12,
-                  color: const Color(0xFF64748B),
+    return InkWell(
+      onTap: () async {
+        await Navigator.pushNamed(
+          context,
+          '/activity-detail',
+          arguments: log,
+        );
+        _loadAllData();
+      },
+      borderRadius: BorderRadius.circular(18),
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: const Color(0xFFE2E8F0), width: 0.8),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.05),
+              blurRadius: 2,
+              offset: const Offset(0, 1),
+            ),
+          ],
+        ),
+        padding: const EdgeInsets.all(16.8),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Date & Completed Badge
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  _formatDate(log.activityDate),
+                  style: GoogleFonts.inter(
+                    fontSize: 12,
+                    color: const Color(0xFF64748B),
+                  ),
                 ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8.8, vertical: 2.8),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFD0FAE5),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(
-                      Icons.check_circle_rounded,
-                      color: Color(0xFF007A55),
-                      size: 12,
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      log.status,
-                      style: GoogleFonts.inter(
-                        fontSize: 11,
-                        color: const Color(0xFF007A55),
-                        fontWeight: FontWeight.w500,
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8.8, vertical: 2.8),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFD0FAE5),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(
+                        Icons.check_circle_rounded,
+                        color: Color(0xFF007A55),
+                        size: 12,
                       ),
-                    ),
-                  ],
+                      const SizedBox(width: 4),
+                      Text(
+                        log.status,
+                        style: GoogleFonts.inter(
+                          fontSize: 11,
+                          color: const Color(0xFF007A55),
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            // Title
+            Text(
+              log.title,
+              style: GoogleFonts.inter(
+                fontSize: 16,
+                fontWeight: FontWeight.w500,
+                color: const Color(0xFF0A0A0A),
+              ),
+            ),
+            const SizedBox(height: 6),
+            // Description
+            if (log.description != null && log.description!.isNotEmpty)
+              Text(
+                log.description!,
+                style: GoogleFonts.inter(
+                  fontSize: 14,
+                  color: const Color(0xFF64748B),
+                  height: 1.4,
                 ),
               ),
-            ],
-          ),
-          const SizedBox(height: 6),
-          // Title
-          Text(
-            log.title,
-            style: GoogleFonts.inter(
-              fontSize: 16,
-              fontWeight: FontWeight.w500,
-              color: const Color(0xFF0A0A0A),
-            ),
-          ),
-          const SizedBox(height: 6),
-          // Description
-          if (log.description != null && log.description!.isNotEmpty)
-            Text(
-              log.description!,
-              style: GoogleFonts.inter(
-                fontSize: 14,
-                color: const Color(0xFF64748B),
-                height: 1.4,
-              ),
-            ),
-          const SizedBox(height: 12),
-          // Tag indicators footer
-          Wrap(
-            spacing: 12.0,
-            runSpacing: 6.0,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            children: [
-              // Project Tag
-              if (log.projectName != null && log.projectName!.isNotEmpty)
+            const SizedBox(height: 12),
+            // Tag indicators footer
+            Wrap(
+              spacing: 12.0,
+              runSpacing: 6.0,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                // Project Tag
+                if (log.projectName != null && log.projectName!.isNotEmpty)
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.business_center_rounded, color: Color(0xFF64748B), size: 14),
+                      const SizedBox(width: 4),
+                      Text(
+                        log.projectName!,
+                        style: GoogleFonts.inter(
+                          fontSize: 12,
+                          color: const Color(0xFF64748B),
+                        ),
+                      ),
+                    ],
+                  ),
+                // Hour Tag
                 Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(Icons.business_center_rounded, color: Color(0xFF64748B), size: 14),
+                    const Icon(Icons.access_time_rounded, color: Color(0xFF64748B), size: 14),
                     const SizedBox(width: 4),
                     Text(
-                      log.projectName!,
+                      durationText,
                       style: GoogleFonts.inter(
                         fontSize: 12,
                         color: const Color(0xFF64748B),
@@ -1940,40 +2381,26 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   ],
                 ),
-              // Hour Tag
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(Icons.access_time_rounded, color: Color(0xFF64748B), size: 14),
-                  const SizedBox(width: 4),
-                  Text(
-                    durationText,
-                    style: GoogleFonts.inter(
-                      fontSize: 12,
-                      color: const Color(0xFF64748B),
+                // Category tag
+                if (log.category != null && log.category!.isNotEmpty)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 2.0),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFFF7ED),
+                      borderRadius: BorderRadius.circular(100),
+                    ),
+                    child: Text(
+                      log.category!,
+                      style: GoogleFonts.inter(
+                        fontSize: 12,
+                        color: const Color(0xFF9A3412),
+                      ),
                     ),
                   ),
-                ],
-              ),
-              // Category tag
-              if (log.category != null && log.category!.isNotEmpty)
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 2.0),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFFFF7ED),
-                    borderRadius: BorderRadius.circular(100),
-                  ),
-                  child: Text(
-                    log.category!,
-                    style: GoogleFonts.inter(
-                      fontSize: 12,
-                      color: const Color(0xFF9A3412),
-                    ),
-                  ),
-                ),
-            ],
-          ),
-        ],
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -2041,6 +2468,204 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
   }
+}
+
+// Custom Painter for Donut Chart
+class DonutChartPainter extends CustomPainter {
+  final Map<String, int> data;
+  final List<Color> colors;
+  
+  DonutChartPainter({required this.data, required this.colors});
+  
+  @override
+  void paint(Canvas canvas, Size size) {
+    final double total = data.values.fold(0.0, (sum, item) => sum + item);
+    if (total == 0) {
+      final paint = Paint()
+        ..color = const Color(0xFFE2E8F0)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 14;
+      canvas.drawCircle(Offset(size.width / 2, size.height / 2), size.width / 2 - 10, paint);
+      return;
+    }
+    
+    double startAngle = -3.14159265 / 2; // Start from top
+    final rect = Rect.fromLTWH(10, 10, size.width - 20, size.height - 20);
+    
+    int i = 0;
+    data.forEach((key, val) {
+      final sweepAngle = (val / total) * 2 * 3.14159265;
+      final paint = Paint()
+        ..color = colors[i % colors.length]
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 14
+        ..strokeCap = StrokeCap.butt;
+        
+      canvas.drawArc(rect, startAngle, sweepAngle, false, paint);
+      startAngle += sweepAngle;
+      i++;
+    });
+  }
+  
+  @override
+  bool shouldRepaint(covariant DonutChartPainter oldDelegate) => true;
+}
+
+// Custom Painter for Bar Chart (Activities)
+class BarChartPainter extends CustomPainter {
+  final List<int> values;
+  final List<String> days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  
+  BarChartPainter({required this.values});
+  
+  @override
+  void paint(Canvas canvas, Size size) {
+    final int maxValue = values.fold<int>(4, (max, val) => val > max ? val : max);
+    
+    final double chartWidth = size.width - 40;
+    final double chartHeight = size.height - 30;
+    
+    final gridPaint = Paint()
+      ..color = const Color(0xFFF1F5F9)
+      ..strokeWidth = 1.0;
+      
+    final textPainter = TextPainter(
+      textDirection: TextDirection.ltr,
+    );
+    
+    for (int i = 0; i <= 4; i++) {
+      final double y = chartHeight - (i / 4.0) * chartHeight + 10;
+      final double fraction = i / 4.0;
+      final int labelVal = (fraction * maxValue).round();
+      
+      canvas.drawLine(Offset(30, y), Offset(size.width - 10, y), gridPaint);
+      
+      textPainter.text = TextSpan(
+        text: labelVal.toString(),
+        style: GoogleFonts.inter(fontSize: 10, color: const Color(0xFF94A3B8)),
+      );
+      textPainter.layout();
+      textPainter.paint(canvas, Offset(5, y - 6));
+    }
+    
+    final double barWidth = 18.0;
+    final double colWidth = chartWidth / 7;
+    
+    final barPaint = Paint()
+      ..color = const Color(0xFFFF6D00)
+      ..style = PaintingStyle.fill;
+      
+    for (int i = 0; i < 7; i++) {
+      final double x = 30 + i * colWidth + (colWidth - barWidth) / 2;
+      final double valHeight = maxValue == 0 ? 0.0 : (values[i] / maxValue) * chartHeight;
+      final double y = chartHeight + 10 - valHeight;
+      
+      if (valHeight > 0) {
+        final rect = RRect.fromRectAndRadius(
+          Rect.fromLTWH(x, y, barWidth, valHeight),
+          const Radius.circular(4),
+        );
+        canvas.drawRRect(rect, barPaint);
+      }
+      
+      textPainter.text = TextSpan(
+        text: days[i],
+        style: GoogleFonts.inter(fontSize: 10, color: const Color(0xFF64748B)),
+      );
+      textPainter.layout();
+      textPainter.paint(canvas, Offset(30 + i * colWidth + (colWidth - textPainter.width) / 2, chartHeight + 14));
+    }
+  }
+  
+  @override
+  bool shouldRepaint(covariant BarChartPainter oldDelegate) => true;
+}
+
+// Custom Painter for Line Chart (Working Hours)
+class LineChartPainter extends CustomPainter {
+  final List<double> values;
+  final List<String> days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  
+  LineChartPainter({required this.values});
+  
+  @override
+  void paint(Canvas canvas, Size size) {
+    final double maxValue = values.fold<double>(8.0, (max, val) => val > max ? val : max);
+    
+    final double chartWidth = size.width - 40;
+    final double chartHeight = size.height - 30;
+    
+    final gridPaint = Paint()
+      ..color = const Color(0xFFF1F5F9)
+      ..strokeWidth = 1.0;
+      
+    final textPainter = TextPainter(
+      textDirection: TextDirection.ltr,
+    );
+    
+    for (int i = 0; i <= 4; i++) {
+      final double y = chartHeight - (i / 4.0) * chartHeight + 10;
+      final double labelVal = (i / 4.0) * maxValue;
+      
+      canvas.drawLine(Offset(30, y), Offset(size.width - 10, y), gridPaint);
+      
+      textPainter.text = TextSpan(
+        text: labelVal.toStringAsFixed(labelVal % 1 == 0 ? 0 : 1),
+        style: GoogleFonts.inter(fontSize: 10, color: const Color(0xFF94A3B8)),
+      );
+      textPainter.layout();
+      textPainter.paint(canvas, Offset(5, y - 6));
+    }
+    
+    final double colWidth = chartWidth / 7;
+    final points = <Offset>[];
+    
+    for (int i = 0; i < 7; i++) {
+      final double x = 30 + i * colWidth + colWidth / 2;
+      final double valHeight = maxValue == 0 ? 0.0 : (values[i] / maxValue) * chartHeight;
+      final double y = chartHeight + 10 - valHeight;
+      points.add(Offset(x, y));
+    }
+    
+    final path = Path();
+    path.moveTo(points[0].dx, points[0].dy);
+    for (int i = 1; i < 7; i++) {
+      path.lineTo(points[i].dx, points[i].dy);
+    }
+    
+    final linePaint = Paint()
+      ..color = const Color(0xFFFF6D00)
+      ..strokeWidth = 3.0
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round;
+      
+    canvas.drawPath(path, linePaint);
+    
+    final dotPaint = Paint()
+      ..color = const Color(0xFFFF6D00)
+      ..style = PaintingStyle.fill;
+    final dotStroke = Paint()
+      ..color = Colors.white
+      ..strokeWidth = 2.0
+      ..style = PaintingStyle.stroke;
+      
+    for (var pt in points) {
+      canvas.drawCircle(pt, 5.0, dotPaint);
+      canvas.drawCircle(pt, 5.0, dotStroke);
+    }
+    
+    for (int i = 0; i < 7; i++) {
+      textPainter.text = TextSpan(
+        text: days[i],
+        style: GoogleFonts.inter(fontSize: 10, color: const Color(0xFF64748B)),
+      );
+      textPainter.layout();
+      textPainter.paint(canvas, Offset(30 + i * colWidth + (colWidth - textPainter.width) / 2, chartHeight + 14));
+    }
+  }
+  
+  @override
+  bool shouldRepaint(covariant LineChartPainter oldDelegate) => true;
 }
 
 // Simple custom painter to draw the dashed border for today's activity card

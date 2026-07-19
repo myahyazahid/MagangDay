@@ -4,6 +4,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'screens/login_screen.dart';
 import 'screens/register_screen.dart';
 import 'screens/home_screen.dart';
+import 'screens/activity_detail_screen.dart';
+import 'models/activity_log_model.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -50,6 +52,10 @@ class MyApp extends StatelessWidget {
         '/login': (context) => const LoginScreen(),
         '/register': (context) => const RegisterScreen(),
         '/home': (context) => const HomeScreen(),
+        '/activity-detail': (context) {
+          final log = ModalRoute.of(context)!.settings.arguments as ActivityLogModel;
+          return ActivityDetailScreen(initialLog: log);
+        },
       },
     );
   }
