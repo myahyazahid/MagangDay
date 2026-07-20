@@ -129,7 +129,7 @@ class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
           builder: (context, setSheetState) {
             return Padding(
               padding: EdgeInsets.only(
-                bottom: MediaQuery.of(context).viewInsets.bottom,
+                bottom: MediaQuery.of(context).viewInsets.bottom + MediaQuery.of(context).padding.bottom,
                 left: 20,
                 right: 20,
                 top: 24,
@@ -689,7 +689,12 @@ class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
 
           // Bottom Action Row
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            padding: EdgeInsets.only(
+              left: 16,
+              right: 16,
+              top: 12,
+              bottom: 12 + MediaQuery.of(context).padding.bottom,
+            ),
             decoration: const BoxDecoration(
               color: Colors.white,
               border: Border(
@@ -770,7 +775,10 @@ class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
                 width: 1.5,
               ),
             ),
-            child: detailContent,
+            child: SafeArea(
+              bottom: false,
+              child: detailContent,
+            ),
           ),
         ),
       );
@@ -778,7 +786,10 @@ class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
-      body: detailContent,
+      body: SafeArea(
+        bottom: false,
+        child: detailContent,
+      ),
     );
   }
 

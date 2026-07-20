@@ -338,7 +338,7 @@ class _HomeScreenState extends State<HomeScreen> {
           builder: (context, setSheetState) {
             return Padding(
               padding: EdgeInsets.only(
-                bottom: MediaQuery.of(context).viewInsets.bottom,
+                bottom: MediaQuery.of(context).viewInsets.bottom + MediaQuery.of(context).padding.bottom,
                 left: 20,
                 right: 20,
                 top: 24,
@@ -625,7 +625,7 @@ class _HomeScreenState extends State<HomeScreen> {
           builder: (context, setSheetState) {
             return Padding(
               padding: EdgeInsets.only(
-                bottom: MediaQuery.of(context).viewInsets.bottom,
+                bottom: MediaQuery.of(context).viewInsets.bottom + MediaQuery.of(context).padding.bottom,
                 left: 20,
                 right: 20,
                 top: 24,
@@ -822,7 +822,7 @@ class _HomeScreenState extends State<HomeScreen> {
           builder: (context, setSheetState) {
             return Padding(
               padding: EdgeInsets.only(
-                bottom: MediaQuery.of(context).viewInsets.bottom,
+                bottom: MediaQuery.of(context).viewInsets.bottom + MediaQuery.of(context).padding.bottom,
                 left: 20,
                 right: 20,
                 top: 24,
@@ -962,7 +962,12 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       builder: (context) {
         return Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+          padding: EdgeInsets.only(
+            left: 20,
+            right: 20,
+            top: 24,
+            bottom: 24 + MediaQuery.of(context).padding.bottom,
+          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             mainAxisSize: MainAxisSize.min,
@@ -1159,7 +1164,7 @@ class _HomeScreenState extends State<HomeScreen> {
           builder: (context, setSheetState) {
             return Padding(
               padding: EdgeInsets.only(
-                bottom: MediaQuery.of(context).viewInsets.bottom,
+                bottom: MediaQuery.of(context).viewInsets.bottom + MediaQuery.of(context).padding.bottom,
                 left: 20,
                 right: 20,
                 top: 24,
@@ -1489,52 +1494,58 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       child: Column(
         children: [
-          // Scrollable Page Content
           Expanded(
-            child: ClipRRect(
-              borderRadius: isDesktopWeb 
-                  ? const BorderRadius.vertical(top: Radius.circular(36)) 
-                  : BorderRadius.zero,
-              child: _isLoadingAll
-                  ? const Center(
-                      child: CircularProgressIndicator(
-                        color: Color(0xFFFF6D00),
-                      ),
-                    )
-                  : _currentIndex == 3
-                      ? _buildProfileView()
-                      : _currentIndex == 1
-                          ? _buildHistoryView()
-                          : _currentIndex == 2
-                              ? _buildReportsView()
-                              : RefreshIndicator(
-                                  color: const Color(0xFFFF6D00),
-                                  onRefresh: _loadAllData,
-                                  child: _buildHomeView(),
-                                ),
+            child: SafeArea(
+              bottom: false,
+              child: ClipRRect(
+                borderRadius: isDesktopWeb 
+                    ? const BorderRadius.vertical(top: Radius.circular(36)) 
+                    : BorderRadius.zero,
+                child: _isLoadingAll
+                    ? const Center(
+                        child: CircularProgressIndicator(
+                          color: Color(0xFFFF6D00),
+                        ),
+                      )
+                    : _currentIndex == 3
+                        ? _buildProfileView()
+                        : _currentIndex == 1
+                            ? _buildHistoryView()
+                            : _currentIndex == 2
+                                ? _buildReportsView()
+                                : RefreshIndicator(
+                                    color: const Color(0xFFFF6D00),
+                                    onRefresh: _loadAllData,
+                                    child: _buildHomeView(),
+                                  ),
+              ),
             ),
           ),
 
           // Bottom Navigation Bar
-          Container(
-            padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 16.0),
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.95),
-              border: const Border(
-                top: BorderSide(
-                  color: Color(0xFFE2E8F0),
-                  width: 0.8,
+          SafeArea(
+            top: false,
+            bottom: true,
+            child: Container(
+              padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 16.0),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.95),
+                border: const Border(
+                  top: BorderSide(
+                    color: Color(0xFFE2E8F0),
+                    width: 0.8,
+                  ),
                 ),
               ),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
-                _buildNavItem(0, Icons.home_rounded, 'Home'),
-                _buildNavItem(1, Icons.assignment_outlined, 'Log Activity'),
-                _buildNavItem(2, Icons.bar_chart_rounded, 'Reports'),
-                _buildNavItem(3, Icons.person_rounded, 'Profile'),
-              ],
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                children: [
+                  _buildNavItem(0, Icons.home_rounded, 'Home'),
+                  _buildNavItem(1, Icons.assignment_outlined, 'Log Activity'),
+                  _buildNavItem(2, Icons.bar_chart_rounded, 'Reports'),
+                  _buildNavItem(3, Icons.person_rounded, 'Profile'),
+                ],
+              ),
             ),
           ),
         ],
@@ -1581,11 +1592,16 @@ class _HomeScreenState extends State<HomeScreen> {
       backgroundColor: const Color(0xFFF8FAFC),
       body: mainContent,
       floatingActionButton: _currentIndex == 1 && _activeInternship != null
-          ? FloatingActionButton(
-              onPressed: _showAddLogSheet,
-              backgroundColor: const Color(0xFFFF6D00),
-              foregroundColor: Colors.white,
-              child: const Icon(Icons.add_rounded),
+          ? Padding(
+              padding: EdgeInsets.only(
+                bottom: 72.0 + MediaQuery.of(context).padding.bottom,
+              ),
+              child: FloatingActionButton(
+                onPressed: _showAddLogSheet,
+                backgroundColor: const Color(0xFFFF6D00),
+                foregroundColor: Colors.white,
+                child: const Icon(Icons.add_rounded),
+              ),
             )
           : null,
     );
