@@ -12,10 +12,12 @@ class SupabaseService {
   static Future<AuthResponse> signUp({
     required String email,
     required String password,
+    Map<String, dynamic>? data,
   }) async {
     return await client.auth.signUp(
       email: email,
       password: password,
+      data: data,
     );
   }
 

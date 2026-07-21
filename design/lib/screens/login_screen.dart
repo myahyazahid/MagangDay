@@ -29,7 +29,7 @@ class _LoginScreenState extends State<LoginScreen> {
     _authSubscription = Supabase.instance.client.auth.onAuthStateChange.listen((data) {
       final AuthChangeEvent event = data.event;
       if (event == AuthChangeEvent.signedIn) {
-        if (mounted) {
+        if (mounted && ModalRoute.of(context)?.isCurrent == true) {
           Navigator.pushReplacementNamed(context, '/home');
         }
       }

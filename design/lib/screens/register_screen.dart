@@ -58,6 +58,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
         final response = await SupabaseService.signUp(
           email: _emailController.text.trim(),
           password: _passwordController.text,
+          data: {
+            'full_name': _nameController.text.trim(),
+          },
         );
 
         final user = response.user;
@@ -82,6 +85,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
           setState(() {
             _isLoading = false;
           });
+          
+          final hasSession = Supabase.instance.client.auth.currentSession != null;
           
           showDialog(
             context: context,
@@ -126,7 +131,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 actions: <Widget>[
                   TextButton(
                     child: Text(
-                      'Masuk Sekarang',
+                      hasSession ? 'Mulai Sekarang' : 'Masuk Sekarang',
                       style: GoogleFonts.plusJakartaSans(
                         fontWeight: FontWeight.bold,
                         color: const Color(0xFFFF6D00),
@@ -134,7 +139,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     ),
                     onPressed: () {
                       Navigator.of(context).pop(); // Dismiss Dialog
-                      Navigator.of(context).pushReplacementNamed('/login'); // Go to Login
+                      if (hasSession) {
+                        Navigator.of(context).pushReplacementNamed('/home'); // Go to Home
+                      } else {
+                        Navigator.of(context).pushReplacementNamed('/login'); // Go to Login
+                      }
                     },
                   ),
                 ],
