@@ -2,6 +2,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:image_picker/image_picker.dart';
 import '../models/profile_model.dart';
 import '../models/internship_model.dart';
 import '../models/activity_log_model.dart';
@@ -22,6 +23,9 @@ class _HomeScreenState extends State<HomeScreen> {
   ProfileModel? _profile;
   InternshipModel? _activeInternship;
   List<ActivityLogModel> _logs = [];
+  
+  String? _tempPhotoUrl;
+  bool _isUploadingPhoto = false;
   
   bool _isLoadingAll = true;
   bool _isSubmitting = false;
@@ -599,6 +603,8 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _showEditProfileSheet() {
+    _tempPhotoUrl = _profile?.profilePhotoUrl;
+    _isUploadingPhoto = false;
     if (_profile != null) {
       _fullNameController.text = _profile!.fullName;
       _nimController.text = _profile!.nim;
@@ -672,6 +678,76 @@ class _HomeScreenState extends State<HomeScreen> {
                       Text(
                         'Ubah data diri dan informasi akademik Anda.',
                         style: GoogleFonts.inter(fontSize: 13, color: const Color(0xFF757575)),
+                      ),
+                      const SizedBox(height: 20),
+
+                      // Profile Photo Upload Section
+                      Center(
+                        child: Stack(
+                          children: [
+                            Container(
+                              width: 90,
+                              height: 90,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                border: Border.all(color: const Color(0xFFFF6D00), width: 2),
+                                color: const Color(0xFFFFEDD5),
+                                image: (_tempPhotoUrl != null && _tempPhotoUrl!.isNotEmpty)
+                                    ? DecorationImage(
+                                        image: NetworkImage(_tempPhotoUrl!),
+                                        fit: BoxFit.cover,
+                                      )
+                                    : null,
+                              ),
+                              alignment: Alignment.center,
+                              child: (_tempPhotoUrl != null && _tempPhotoUrl!.isNotEmpty)
+                                  ? null
+                                  : Text(
+                                      _fullNameController.text.isNotEmpty
+                                          ? _fullNameController.text[0].toUpperCase()
+                                          : 'M',
+                                      style: GoogleFonts.plusJakartaSans(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 34,
+                                        color: const Color(0xFFFF6D00),
+                                      ),
+                                    ),
+                            ),
+                            if (_isUploadingPhoto)
+                              Positioned.fill(
+                                child: Container(
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: Colors.black.withValues(alpha: 0.4),
+                                  ),
+                                  child: const Center(
+                                    child: CircularProgressIndicator(
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            Positioned(
+                              bottom: 0,
+                              right: 0,
+                              child: GestureDetector(
+                                onTap: _isUploadingPhoto ? null : () => _pickAndUploadImage(setSheetState),
+                                child: Container(
+                                  padding: const EdgeInsets.all(6),
+                                  decoration: const BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: Color(0xFFFF6D00),
+                                  ),
+                                  child: const Icon(
+                                    Icons.camera_alt_rounded,
+                                    color: Colors.white,
+                                    size: 16,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                       const SizedBox(height: 20),
 
@@ -785,6 +861,7 @@ class _HomeScreenState extends State<HomeScreen> {
             university: _universityController.text.trim(),
             studyProgram: _studyProgramController.text.trim(),
             semester: int.tryParse(_semesterController.text) ?? 1,
+            profilePhotoUrl: _tempPhotoUrl,
           );
 
           await SupabaseService.saveProfile(updatedProfile);
@@ -802,6 +879,48 @@ class _HomeScreenState extends State<HomeScreen> {
             setSheetState(() => _isSubmitting = false);
           }
         }
+      }
+    }
+  }
+
+  Future<void> _pickAndUploadImage(StateSetter setSheetState) async {
+    final ImagePicker picker = ImagePicker();
+    try {
+      final XFile? image = await picker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 500,
+        maxHeight: 500,
+        imageQuality: 80,
+      );
+
+      if (image == null) return;
+
+      setSheetState(() {
+        _isUploadingPhoto = true;
+      });
+
+      final bytes = await image.readAsBytes();
+      final extension = image.path.split('.').last.toLowerCase();
+      final user = SupabaseService.currentUser;
+
+      if (user == null) throw Exception('User tidak ditemukan.');
+
+      final String publicUrl = await SupabaseService.uploadAvatar(
+        userId: user.id,
+        fileBytes: bytes,
+        extension: extension,
+      );
+
+      setSheetState(() {
+        _tempPhotoUrl = publicUrl;
+        _isUploadingPhoto = false;
+      });
+    } catch (e) {
+      setSheetState(() {
+        _isUploadingPhoto = false;
+      });
+      if (mounted) {
+        _showTopNotification('Gagal mengupload foto: ${e.toString()}', isError: true);
       }
     }
   }
@@ -1638,16 +1757,24 @@ class _HomeScreenState extends State<HomeScreen> {
                     )
                   ],
                   color: const Color(0xFFFFE0B2),
+                  image: (_profile?.profilePhotoUrl != null && _profile!.profilePhotoUrl!.isNotEmpty)
+                      ? DecorationImage(
+                          image: NetworkImage(_profile!.profilePhotoUrl!),
+                          fit: BoxFit.cover,
+                        )
+                      : null,
                 ),
                 alignment: Alignment.center,
-                child: Text(
-                  initial,
-                  style: GoogleFonts.plusJakartaSans(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 18,
-                    color: const Color(0xFFFF6D00),
-                  ),
-                ),
+                child: (_profile?.profilePhotoUrl != null && _profile!.profilePhotoUrl!.isNotEmpty)
+                    ? null
+                    : Text(
+                        initial,
+                        style: GoogleFonts.plusJakartaSans(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 18,
+                          color: const Color(0xFFFF6D00),
+                        ),
+                      ),
               ),
               const SizedBox(width: 12),
               // Greeting Text
@@ -2681,16 +2808,24 @@ class _HomeScreenState extends State<HomeScreen> {
                       )
                     ],
                     color: const Color(0xFFFFEDD5),
+                    image: (_profile?.profilePhotoUrl != null && _profile!.profilePhotoUrl!.isNotEmpty)
+                        ? DecorationImage(
+                            image: NetworkImage(_profile!.profilePhotoUrl!),
+                            fit: BoxFit.cover,
+                          )
+                        : null,
                   ),
                   alignment: Alignment.center,
-                  child: Text(
-                    initial,
-                    style: GoogleFonts.plusJakartaSans(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 32,
-                      color: const Color(0xFFFF6D00),
-                    ),
-                  ),
+                  child: (_profile?.profilePhotoUrl != null && _profile!.profilePhotoUrl!.isNotEmpty)
+                      ? null
+                      : Text(
+                          initial,
+                          style: GoogleFonts.plusJakartaSans(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 32,
+                            color: const Color(0xFFFF6D00),
+                          ),
+                        ),
                 ),
                 const SizedBox(height: 12),
                 // Name

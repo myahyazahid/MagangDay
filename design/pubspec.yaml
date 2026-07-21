@@ -42,6 +42,7 @@ dependencies:
   excel: ^4.0.6
   path_provider: ^2.1.6
   share_plus: ^13.2.1
+  image_picker: ^1.2.3
 
 dev_dependencies:
   flutter_test:
@@ -69,6 +70,7 @@ flutter:
     - .env
     - assets/logo.png
     - assets/logo_foreground.png
+    - shorebird.yaml
 
   # To add assets to your application, add an assets section, like this:
   # assets:

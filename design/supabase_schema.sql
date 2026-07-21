@@ -109,3 +109,32 @@ CREATE TRIGGER update_internships_updated_at BEFORE UPDATE ON public.internships
 
 CREATE TRIGGER update_activity_logs_updated_at BEFORE UPDATE ON public.activity_logs
     FOR EACH ROW EXECUTE FUNCTION public.handle_update_timestamp();
+
+-- 10. Storage policies for avatar bucket
+-- Create the 'avatar' bucket if it doesn't exist, and make it public
+INSERT INTO storage.buckets (id, name, public)
+VALUES ('avatar', 'avatar', true)
+ON CONFLICT (id) DO NOTHING;
+
+-- Drop existing policies if any
+DROP POLICY IF EXISTS "Allow public access to avatars" ON storage.objects;
+DROP POLICY IF EXISTS "Allow authenticated users to upload avatars" ON storage.objects;
+DROP POLICY IF EXISTS "Allow authenticated users to update their own avatars" ON storage.objects;
+DROP POLICY IF EXISTS "Allow authenticated users to delete their own avatars" ON storage.objects;
+DROP POLICY IF EXISTS "Allow public select" ON storage.objects;
+DROP POLICY IF EXISTS "Allow public insert" ON storage.objects;
+DROP POLICY IF EXISTS "Allow public update" ON storage.objects;
+DROP POLICY IF EXISTS "Allow public delete" ON storage.objects;
+
+-- Create public RLS policies for 'avatar' bucket (case-insensitive and applies to all roles)
+CREATE POLICY "Allow public select" ON storage.objects
+    FOR SELECT USING (lower(bucket_id) = 'avatar');
+
+CREATE POLICY "Allow public insert" ON storage.objects
+    FOR INSERT WITH CHECK (lower(bucket_id) = 'avatar');
+
+CREATE POLICY "Allow public update" ON storage.objects
+    FOR UPDATE USING (lower(bucket_id) = 'avatar') WITH CHECK (lower(bucket_id) = 'avatar');
+
+CREATE POLICY "Allow public delete" ON storage.objects
+    FOR DELETE USING (lower(bucket_id) = 'avatar');

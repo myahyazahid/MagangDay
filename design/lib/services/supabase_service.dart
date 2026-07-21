@@ -53,6 +53,23 @@ class SupabaseService {
     await client.from('profiles').upsert(profile.toJson());
   }
 
+  static Future<String> uploadAvatar({
+    required String userId,
+    required Uint8List fileBytes,
+    required String extension,
+  }) async {
+    final String path = '$userId/avatar.$extension';
+    await client.storage.from('avatar').uploadBinary(
+      path,
+      fileBytes,
+      fileOptions: const FileOptions(
+        upsert: true,
+        contentType: 'image/*',
+      ),
+    );
+    return client.storage.from('avatar').getPublicUrl(path);
+  }
+
   static Future<ProfileModel?> getProfile(String id) async {
     final response = await client
         .from('profiles')
